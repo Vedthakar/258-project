@@ -37,6 +37,8 @@ WALL_GREY_COLOUR:
   .word 0x808080
 PLAYER_COLOUR:
   .word 0x00ffff
+DELETE_COLOUR:
+    .word 0x000000
 ##############################################################################
 # Mutable Data
 ##############################################################################
@@ -47,6 +49,8 @@ GRID:
 PLAYER_COLUMN:
   .word 3
 #The player's position will be in the third column (between columns 0 and 6)
+keyboard_address:
+ .word 0xffff0000
 ##############################################################################
 # Code
 ##############################################################################
@@ -57,14 +61,16 @@ PLAYER_COLUMN:
 main:
     jal initialize_grid
     # Initialize the game
-
+    
 game_loop:
     # 1a. Check if key has been pressed
     # 1b. Check which key has been pressed
     # 2a. Check for collisions
 	# 2b. Update locations (capsules)
 	# 3. Draw the screen
-
+	lw $t0, keyboard_address
+    lw $t8, 0($t0) 
+    beq $t8, 1, keyboard_input
     jal draw_wall
     jal draw_bubbles
     jal draw_player
@@ -245,7 +251,7 @@ draw_player:
   la $t0, PLAYER_COLUMN  #load the address for the player's column
   lw $t0, 0($t0)
   sll $t0, $t0, 1 #shift the value logically to the left by 1 
-  addi $a0, $t0, 1
+  add $a0, $t0, $v1
   addi $a1, $zero, 30  #sets the player's height to the bottom of the playing field 
   addi $a2, $zero, 2
   addi $a3, $zero, 2
@@ -257,4 +263,19 @@ draw_player:
   lw $ra, 4($sp)
   addi $sp, $sp, 8
   jr $ra
-  
+
+keyboard_input:
+    lw $t2 , 4($t0)
+    beq $t2 , 0x61, move_left
+    beq $t2 , 0x64, move_right
+    la $t1, COLOURS
+    j draw_player
+    
+move_left:
+    jal DELETE_PLAYER
+    addi $v1,$v1, -1
+    j draw_player
+move_right:
+    addi $v1,$v1, 1
+    j draw_player
+    
