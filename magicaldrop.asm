@@ -73,8 +73,6 @@ game_loop:
     beq $t8, 1, keyboard_input
     jal draw_wall
     jal draw_bubbles
-    la $t1, PLAYER_COLOUR
-    lw $s0, 0($t1)
     jal draw_player
 
 	# 4. Sleep
@@ -248,7 +246,7 @@ bubble_fill_finish:
 draw_player:
   addi $sp, $sp, -8  #reserving 8 bytes for 2 4 byte words
   sw $ra, 4($sp)  #return address
-  sw $s0, 0($sp)
+  sw $s0, 0($sp)  #the previous value of $s0
 
   la $t0, PLAYER_COLUMN  #load the address for the player's column
   lw $t0, 0($t0)
@@ -257,36 +255,38 @@ draw_player:
   addi $a1, $zero, 30  #sets the player's height to the bottom of the playing field 
   addi $a2, $zero, 2
   addi $a3, $zero, 2
+  la $t1, PLAYER_COLOUR  #load the player's colour to be used as a parameter in draw_rectangle
+  lw $s0, 0($t1)
   jal draw_rectangle
 
-  sw $s0, 0($sp)  #restore the registers from before 
+  lw $s0, 0($sp)  #restore the registers from before 
   lw $ra, 4($sp)
   addi $sp, $sp, 8
   jr $ra
 
 keyboard_input:
-  lw $t2 , 4($t0)
-  beq $t2 , 0x61, move_left
-  beq $t2 , 0x64, move_right
-  la $t1, COLOURS
-  j draw_player
-
+    lw $t2 , 4($t0)
+    beq $t2 , 0x61, move_left
+    beq $t2 , 0x64, move_right
+    beq $t2 , 0x71, quit
+    beq $t2 , 0x73, grab
+    beq $t2 , 0x77, throw
+    la $t1, COLOURS
+    j draw_player
+    
 move_left:
-  la $t1, DELETE_COLOUR
-  lw $s0, 0($t1)
-  jal draw_player
-  addi $v1,$v1, -1
-  la $t1, PLAYER_COLOUR
-  lw $s0, 0($t1)
-  jal draw_player
-  j game_loop
-move_right:
-  la $t1, DELETE_COLOUR
-  lw $s0, 0($t1)
-  jal draw_player
-  addi $v1,$v1, 1
-  la $t1, PLAYER_COLOUR
-  lw $s0, 0($t1)
-  jal draw_player
-  j game_loop
+    #jal DELETE_PLAYER
+    addi $v1,$v1, -1
+    j draw_player
 
+move_right:
+    addi $v1,$v1, 1
+    j draw_player
+
+quit:
+  li $v0 , 10 
+  syscall
+
+grab: #the character picks up same-coloured bubbles from the column above
+
+throw: #the character throws collected bubbles upward into the column above, stacking on existing bubbles
