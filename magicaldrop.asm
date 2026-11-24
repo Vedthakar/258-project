@@ -2,7 +2,7 @@
 # This file contains our implementation of Magical Drop.
 #
 # Student 1: Hetvi Soni, 1009808237
-# Student 2: Ved Thakar, Student Number (if applicable)
+# Student 2: Ved Thakar, 1010847577
 #
 # We assert that the code submitted here is entirely our own 
 # creation, and will indicate otherwise when it is not.
@@ -59,6 +59,7 @@ keyboard_address:
 
     # Run the game.
 main:
+    li $s5, 0
     jal initialize_grid
     # Initialize the game
     
@@ -72,6 +73,7 @@ game_loop:
     lw $t8, 0($t0) 
     beq $t8, 1, keyboard_input
     jal draw_wall
+    li $a0, 1
     jal draw_bubbles
     la $t1, PLAYER_COLOUR
     lw $s0, 0($t1)
@@ -177,8 +179,9 @@ draw_wall:
 
 initialize_grid:
   la $t0, GRID  #inputing the current cell into $t0
+  addi $s4, $zero, 42  #7*6 cells (or 6 rows) to be filled in with bubbles
   addi $t1, $zero, 42  #7*6 cells (or 6 rows) to be filled in with bubbles
-
+  
 initialize_loop: 
   beq $t1, $zero, done_initialization  #if $t1==0, then the initialization has been finsihed
   addi $v0, $zero, 42  #get a random number from 0 to 3
@@ -203,7 +206,7 @@ draw_bubbles:
   sw $s2, 4($sp)
   sw $s3, 0($sp)
   la $s3, GRID 
-  addi $s1, $zero, 1 #setting $s1 (y) to 1 
+  add $s1, $zero, $a0 #setting $s1 (y) to 1 
 
 fill_bubble_row_loop:
   addi $t8, $zero, 29  #when y ==29, then all the 14 rows are done
@@ -254,6 +257,8 @@ draw_player:
   lw $t0, 0($t0)
   sll $t0, $t0, 1 #shift the value logically to the left by 1 
   add $a0, $t0, $v1
+  beq $a0, 0, stay_at_left
+  beq $a0, 14, stay_at_right
   addi $a1, $zero, 30  #sets the player's height to the bottom of the playing field 
   addi $a2, $zero, 2
   addi $a3, $zero, 2
@@ -263,15 +268,33 @@ draw_player:
   lw $ra, 4($sp)
   addi $sp, $sp, 8
   jr $ra
-
+stay_at_left:
+  li $a0, 1
+  addi $v1, $v1, 1
+  jr $ra
+stay_at_right:
+  li $a0, 14
+  addi $v1, $v1, -1
+  jr $ra
 keyboard_input:
   lw $t2 , 4($t0)
   beq $t2 , 0x61, move_left
   beq $t2 , 0x64, move_right
-  la $t1, COLOURS
+  beq $s5, 10, move_down #s5 counts number of key strokes
   j draw_player
+  
+move_down:
+  lw $s5, 0
 
 move_left:
+  addi $s5, $s5, 1
+  la $t0, GRID  #inputing the current cell into $t0
+  li $t1, 28
+  mult $s5, $t1
+  mflo $t1
+  add $t0, $t0, $t1
+  add $t1, $s4, $zero
+  jal initialize_loop
   la $t1, DELETE_COLOUR
   lw $s0, 0($t1)
   jal draw_player
@@ -279,6 +302,7 @@ move_left:
   la $t1, PLAYER_COLOUR
   lw $s0, 0($t1)
   jal draw_player
+  #addi $a1, $a1, 1     this will check the number of keystrokes done so far 
   j game_loop
 move_right:
   la $t1, DELETE_COLOUR
@@ -288,5 +312,6 @@ move_right:
   la $t1, PLAYER_COLOUR
   lw $s0, 0($t1)
   jal draw_player
+  #addi $a1, $a1, 1
   j game_loop
 
