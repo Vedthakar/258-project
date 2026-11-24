@@ -6,7 +6,6 @@
 #
 # We assert that the code submitted here is entirely our own 
 # creation, and will indicate otherwise when it is not.
-#
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       8 
 # - Unit height in pixels:      8
@@ -51,6 +50,12 @@ PLAYER_COLUMN:
 #The player's position will be in the third column (between columns 0 and 6)
 keyboard_address:
  .word 0xffff0000
+HELD_COUNT:
+  .word 0 
+#How many bubbles the player is holding 
+HELD_COLOUR:
+  .word 0 
+#the colour of the bubbles that the player is holding 
 ##############################################################################
 # Code
 ##############################################################################
@@ -59,36 +64,25 @@ keyboard_address:
 
     # Run the game.
 main:
-    li $s5, 0
-    li $s4, 1
+  # Initialize the game
     jal initialize_grid
-    li $a0, 1
-    li $a1, 29
-    jal draw_bubbles
-    # Initialize the game
+    addi $v1, $zero, 3
     
-game_loop:
-    # 1a. Check if key has been pressed
-    # 1b. Check which key has been pressed
-    # 2a. Check for collisions
-	# 2b. Update locations (capsules)
-	# 3. Draw the screen
-	lw $t0, keyboard_address
-    lw $t8, 0($t0) 
-    beq $t8, 1, keyboard_input
+  game_loop:
     jal draw_wall
     la $t1, PLAYER_COLOUR
     lw $s0, 0($t1)
     jal draw_player
-    
-	# 4. Sleep
-    addi $v0, $zero, 32  # sleep
-    addi $a0, $zero, 16  # about 16 ms or 60 frames/second
+
+    # Sleep about 16 ms or 60 frames/second
+    addi $v0, $zero, 32
+    addi $a0, $zero, 16
     syscall
 
-    # 5. Go back to Step 1
+    lw $t0, keyboard_address
+    lw $t8, 0($t0)
+    beq $t8, 1, keyboard_input
     j game_loop
-    
 ##############################################################################
 # Milestone 1:
 # this is a brief description of all the Labels for Milestone 1
@@ -116,12 +110,12 @@ draw_rectangle:
 # this label loads the base display address, calculates the x and y offsets, combines them, 
 # finds the top left memory address and also intitalizes the row counter 
   la $t0, ADDR_DSPL # load the address display into register $t0
-  lw $t0, 0($t0)    # the base address is set to $t0
+  lw $t0, 0($t0) # the base address is set to $t0
   add $t3, $a3, $zero # inputs the height of the rectangle onto #t3
-  sll $t1, $a1, 7   # shift $a1 (y) logically to the left by 7 (or by 128 = 32 bits * 4 bytes)
-  sll $t2, $a0, 2  # shift $a0 (x) logically to the left by 2 (or by 4 bytes)
-  add $t1, $t1, $t2   # obtains the sum of the offsets and puts it into $t1       
-  add $t0, $t0, $t1   # obtains the address of the top left unit of the rectangle we are drawing       
+  sll $t1, $a1, 7 # shift $a1 (y) logically to the left by 7 (or by 128 = 32 bits * 4 bytes)
+  sll $t2, $a0, 2 # shift $a0 (x) logically to the left by 2 (or by 4 bytes)
+  add $t1, $t1, $t2 # obtains the sum of the offsets and puts it into $t1       
+  add $t0, $t0, $t1 # obtains the address of the top left unit of the rectangle we are drawing       
 
 rectangle_row_loop:
   beq $t3, $zero, rectangle_finish  #if this is true, then the rectangle is completed 
@@ -220,7 +214,6 @@ fill_bubble_column_loop:
   beq $s2, $t9, bubble_next_row
 
   lw $t6, 0($s3)  #set $t6 to be the cell value
-  beq $t6, $zero, skip_bubble  #when you have an empty cell, then don't draw anything
   la $t7, COLOURS  #load the colour address
   sll $t6, $t6, 2  #shift $t6 by 2 logically left (so by 4 bytes) as the offset
   add $t7, $t7, $t6  #find the address of the offsetted cell
@@ -254,78 +247,137 @@ bubble_fill_finish:
 draw_player:
   addi $sp, $sp, -8  #reserving 8 bytes for 2 4 byte words
   sw $ra, 4($sp)  #return address
-  sw $s0, 0($sp)
+  sw $s0, 0($sp)  #the previous value of $s0
 
-  la $t0, PLAYER_COLUMN  #load the address for the player's column
-  lw $t0, 0($t0)
-  sll $t0, $t0, 1 #shift the value logically to the left by 1 
-  add $a0, $t0, $v1
-  beq $a0, 0, stay_at_left
-  beq $a0, 14, stay_at_right
-  addi $a1, $zero, 30  #sets the player's height to the bottom of the playing field 
+  sll $t0, $v1, 1  #2 * column
+  addi $a0, $t0, 1  #x = 1 + 2 * column
+  addi $a1, $zero, 30  #sets the player's height to the bottom of the playing field
   addi $a2, $zero, 2
   addi $a3, $zero, 2
   jal draw_rectangle
 
-  sw $s0, 0($sp)  #restore the registers from before 
+  lw $s0, 0($sp)  #restore the registers from before
   lw $ra, 4($sp)
   addi $sp, $sp, 8
   jr $ra
 
-stay_at_left:
-  li $a0, 1
-  addi $v1, $v1, 1
-  jr $ra
+##############################################################################
+# Milestone 2:
+# this is a brief description of all the Labels for Milestone 2
+# keyboard_input: checks and redirects the code to the respective labels if a key has been pressed
+# move_left and move_right: moves the player left or right by changing it's position
+# quit: to gracefully quit the game
+# grab: labels between grab and grab_done help the player to grab any same coloured bubbles from the row above. 
+##############################################################################
 
-stay_at_right:
-  li $a0, 14
-  addi $v1, $v1, -1
-  jr $ra
-  
 keyboard_input:
-  lw $t2 , 4($t0)
-  beq $s5, 10, move_down #s5 counts number of key strokes
-  beq $t2 , 0x61, move_left
-  beq $t2 , 0x64, move_right
-  j draw_player
-
-move_down:
-  addi $s4, $s4, 2
-  add $a0, $s4, $zero
-  li $a1, 29
-  jal draw_bubbles
-  la $t0, GRID  #inputing the current cell into $t0
-  la $t0, GRID
-  li $t1, 7
-  jal initialize_loop
-  li $a0, 1
-  li $a1, 3
-  jal draw_bubbles
-  li $s5, 0
-  j game_loop
-
+    lw $t2 , 4($t0)
+    beq $t2 , 0x61, move_left
+    beq $t2 , 0x64, move_right
+    beq $t2 , 0x71, quit
+    beq $t2 , 0x73, grab
+    beq $t2 , 0x77, throw
+    j game_loop
+    
 move_left:
-  addi $s5, $s5, 1
+  beq $v1, $zero, game_loop #  already in column 0: do nothing
   la $t1, DELETE_COLOUR
   lw $s0, 0($t1)
-  jal draw_player
-  addi $v1,$v1, -1
+  jal draw_player #  erase at the old column
+  addi $v1, $v1, -1 #  move one column left
   la $t1, PLAYER_COLOUR
   lw $s0, 0($t1)
-  jal draw_player
+  jal draw_player #  draw at the new column
   j game_loop
-
+  
 move_right:
-  addi $s5, $s5, 1
+  addi $t3, $zero, 6
+  beq $v1, $t3, game_loop 
   la $t1, DELETE_COLOUR
   lw $s0, 0($t1)
-  jal draw_player
-  addi $v1,$v1, 1
+  jal draw_player #  erase at the old column
+  addi $v1, $v1, 1 #  move one column right
   la $t1, PLAYER_COLOUR
   lw $s0, 0($t1)
-  jal draw_player
+  jal draw_player #  draw at the new column
   j game_loop
 
 quit:
   li $v0 , 10 
   syscall
+
+grab: #the character picks up same-coloured bubbles from the column above
+  la $t0, GRID
+  sll $t1, $v1, 2 #  4 * column number 
+  add $t0, $t0, $t1
+  addi $t0, $t0, 364 
+  addi $t1, $zero, 14 #  14 rows left to look at
+
+find_bottom:
+  beq $t1, $zero, grab_done # if the whole column is empty, then jump to grab_done
+  lw $t2, 0($t0) 
+  bne $t2, $zero, grab_found 
+  addi $t0, $t0, -28 # move up one row (7 cells * 4 bytes)
+  addi $t1, $t1, -1
+  j find_bottom
+
+grab_found:
+  la $t3, HELD_COUNT #HELD_COUNT is the number of bubble the player has 
+  lw $t4, 0($t3)
+  beq $t4, $zero, grab_chain # if the player is not holding anything, then zero colour 
+  lw $t5, 4($t3)
+  bne $t5, $t2, grab_done #don't grab different colours
+
+grab_chain:
+  sw $zero, 0($t0) # remove this bubble from the grid
+  addi $t4, $t4, 1 # one more bubble held
+  addi $t0, $t0, -28 # move up one row (7cells * 4 bytes)
+  addi $t1, $t1, -1
+  beq $t1, $zero, grab_save
+  lw $t5, 0($t0)
+  beq $t5, $t2, grab_chain # if it's the same colour then grab it
+
+grab_save:
+  sw $t4, 0($t3)
+  sw $t2, 4($t3)
+
+grab_done:
+  j game_loop
+
+##############################################################################
+# Milestone 3:
+# this is a brief description of all the Labels for Milestone 3
+# throw: labels throw to throw_done help initialize the throwing feature for milestone 3
+##############################################################################
+throw: #the character throws collected bubbles upward into the column above, stacking on existing bubbles
+  la $t3, HELD_COUNT
+  lw $t4, 0($t3)
+  beq $t4, $zero, throw_done # if the player is not holding anything, then there is nothing to throw
+  lw $t2, 4($t3) # t2 has the bubbles held colour
+  la $t0, GRID
+  sll $t1, $v1, 2
+  add $t0, $t0, $t1 
+  addi $t1, $zero, 14
+
+throw_find:
+  beq $t1, $zero, throw_save # if the column is full then nothing can be thrown
+  lw $t3, 0($t0)
+  beq $t3, $zero, throw_place
+  addi $t0, $t0, 28 
+  addi $t1, $t1, -1
+  j throw_find
+
+throw_place:
+  sw $t2, 0($t0) 
+  addi $t4, $t4, -1
+  addi $t0, $t0, 28
+  addi $t1, $t1, -1
+  beq $t4, $zero, throw_save # all bubbles are now thrown
+  bne $t1, $zero, throw_place # if there is still room below, then keep going
+
+throw_save:
+  la $t3, HELD_COUNT
+  sw $t4, 0($t3)
+
+throw_done:
+  j game_loop
