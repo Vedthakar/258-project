@@ -205,7 +205,7 @@ draw_bubbles:
   la $s3, GRID 
   add $s1, $zero, $a0 #setting $s1 (y) to 1 
   add $t8, $zero, $a1
-  beq $a0, 17, quit
+  beq $a0, 19, quit
 
 fill_bubble_row_loop:
   addi $t8, $zero, 29  #when y ==29, then all the 14 rows are done
