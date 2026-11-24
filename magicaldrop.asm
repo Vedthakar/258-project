@@ -209,7 +209,7 @@ draw_bubbles:
   la $s3, GRID 
   add $s1, $zero, $a0 #setting $s1 (y) to 1 
   add $t8, $zero, $a1
-  beq $a0, 17, quit
+  beq $a0, 19, quit
 
 fill_bubble_row_loop:
   beq $s1, $t8, bubble_fill_finish
@@ -295,7 +295,6 @@ move_down:
   li $a1, 29
   jal draw_bubbles
   la $t0, GRID  #inputing the current cell into $t0
-  la $t0, GRID
   li $t1, 7
   jal initialize_loop
   li $a0, 1
