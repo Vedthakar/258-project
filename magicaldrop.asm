@@ -60,7 +60,11 @@ keyboard_address:
     # Run the game.
 main:
     li $s5, 0
+    li $s4, 1
     jal initialize_grid
+    li $a0, 1
+    li $a1, 29
+    jal draw_bubbles
     # Initialize the game
     
 game_loop:
@@ -73,12 +77,10 @@ game_loop:
     lw $t8, 0($t0) 
     beq $t8, 1, keyboard_input
     jal draw_wall
-    li $a0, 1
-    jal draw_bubbles
     la $t1, PLAYER_COLOUR
     lw $s0, 0($t1)
     jal draw_player
-
+    
 	# 4. Sleep
     addi $v0, $zero, 32  # sleep
     addi $a0, $zero, 16  # about 16 ms or 60 frames/second
@@ -179,7 +181,6 @@ draw_wall:
 
 initialize_grid:
   la $t0, GRID  #inputing the current cell into $t0
-  addi $s4, $zero, 42  #7*6 cells (or 6 rows) to be filled in with bubbles
   addi $t1, $zero, 42  #7*6 cells (or 6 rows) to be filled in with bubbles
   
 initialize_loop: 
@@ -207,9 +208,10 @@ draw_bubbles:
   sw $s3, 0($sp)
   la $s3, GRID 
   add $s1, $zero, $a0 #setting $s1 (y) to 1 
+  add $t8, $zero, $a1
+  beq $a0, 17, quit
 
 fill_bubble_row_loop:
-  addi $t8, $zero, 29  #when y ==29, then all the 14 rows are done
   beq $s1, $t8, bubble_fill_finish
   addi $s2, $zero, 1  #sets $s2 (x) to 1
 
@@ -223,7 +225,8 @@ fill_bubble_column_loop:
   sll $t6, $t6, 2  #shift $t6 by 2 logically left (so by 4 bytes) as the offset
   add $t7, $t7, $t6  #find the address of the offsetted cell
   lw $s0, 0($t7)  #load that colour value
-
+  
+  
   add $a0, $s2, $zero  #the current x position  
   add $a1, $s1, $zero  #the current y position
   addi $a2, $zero, 2  #the width
@@ -268,33 +271,41 @@ draw_player:
   lw $ra, 4($sp)
   addi $sp, $sp, 8
   jr $ra
+
 stay_at_left:
   li $a0, 1
   addi $v1, $v1, 1
   jr $ra
+
 stay_at_right:
   li $a0, 14
   addi $v1, $v1, -1
   jr $ra
+  
 keyboard_input:
   lw $t2 , 4($t0)
+  beq $s5, 10, move_down #s5 counts number of key strokes
   beq $t2 , 0x61, move_left
   beq $t2 , 0x64, move_right
-  beq $s5, 10, move_down #s5 counts number of key strokes
   j draw_player
-  
+
 move_down:
-  lw $s5, 0
+  addi $s4, $s4, 2
+  add $a0, $s4, $zero
+  li $a1, 29
+  jal draw_bubbles
+  la $t0, GRID  #inputing the current cell into $t0
+  la $t0, GRID
+  li $t1, 7
+  jal initialize_loop
+  li $a0, 1
+  li $a1, 3
+  jal draw_bubbles
+  li $s5, 0
+  j game_loop
 
 move_left:
   addi $s5, $s5, 1
-  la $t0, GRID  #inputing the current cell into $t0
-  li $t1, 28
-  mult $s5, $t1
-  mflo $t1
-  add $t0, $t0, $t1
-  add $t1, $s4, $zero
-  jal initialize_loop
   la $t1, DELETE_COLOUR
   lw $s0, 0($t1)
   jal draw_player
@@ -302,9 +313,10 @@ move_left:
   la $t1, PLAYER_COLOUR
   lw $s0, 0($t1)
   jal draw_player
-  #addi $a1, $a1, 1     this will check the number of keystrokes done so far 
   j game_loop
+
 move_right:
+  addi $s5, $s5, 1
   la $t1, DELETE_COLOUR
   lw $s0, 0($t1)
   jal draw_player
@@ -312,6 +324,8 @@ move_right:
   la $t1, PLAYER_COLOUR
   lw $s0, 0($t1)
   jal draw_player
-  #addi $a1, $a1, 1
   j game_loop
 
+quit:
+  li $v0 , 10 
+  syscall
