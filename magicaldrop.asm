@@ -2,7 +2,7 @@
 # This file contains our implementation of Magical Drop.
 #
 # Student 1: Hetvi Soni, 1009808237
-# Student 2: Ved Thakar, Student Number (if applicable)
+# Student 2: Ved Thakar, 1010847577
 #
 # We assert that the code submitted here is entirely our own 
 # creation, and will indicate otherwise when it is not.
@@ -70,7 +70,6 @@ main:
     
   game_loop:
     jal draw_wall
-    jal draw_bubbles
     la $t1, PLAYER_COLOUR
     lw $s0, 0($t1)
     jal draw_player
@@ -177,7 +176,7 @@ draw_wall:
 initialize_grid:
   la $t0, GRID  #inputing the current cell into $t0
   addi $t1, $zero, 42  #7*6 cells (or 6 rows) to be filled in with bubbles
-
+  
 initialize_loop: 
   beq $t1, $zero, done_initialization  #if $t1==0, then the initialization has been finsihed
   addi $v0, $zero, 42  #get a random number from 0 to 3
@@ -202,10 +201,11 @@ draw_bubbles:
   sw $s2, 4($sp)
   sw $s3, 0($sp)
   la $s3, GRID 
-  addi $s1, $zero, 1 #setting $s1 (y) to 1 
+  add $s1, $zero, $a0 #setting $s1 (y) to 1 
+  add $t8, $zero, $a1
+  beq $a0, 17, quit
 
 fill_bubble_row_loop:
-  addi $t8, $zero, 29  #when y ==29, then all the 14 rows are done
   beq $s1, $t8, bubble_fill_finish
   addi $s2, $zero, 1  #sets $s2 (x) to 1
 
@@ -218,7 +218,8 @@ fill_bubble_column_loop:
   sll $t6, $t6, 2  #shift $t6 by 2 logically left (so by 4 bytes) as the offset
   add $t7, $t7, $t6  #find the address of the offsetted cell
   lw $s0, 0($t7)  #load that colour value
-
+  
+  
   add $a0, $s2, $zero  #the current x position  
   add $a1, $s1, $zero  #the current y position
   addi $a2, $zero, 2  #the width
