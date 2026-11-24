@@ -6,7 +6,6 @@
 #
 # We assert that the code submitted here is entirely our own 
 # creation, and will indicate otherwise when it is not.
-#
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       8 
 # - Unit height in pixels:      8
@@ -85,7 +84,6 @@ main:
     lw $t8, 0($t0)
     beq $t8, 1, keyboard_input
     j game_loop
-    
 ##############################################################################
 # Milestone 1:
 # this is a brief description of all the Labels for Milestone 1
@@ -113,12 +111,12 @@ draw_rectangle:
 # this label loads the base display address, calculates the x and y offsets, combines them, 
 # finds the top left memory address and also intitalizes the row counter 
   la $t0, ADDR_DSPL # load the address display into register $t0
-  lw $t0, 0($t0)    # the base address is set to $t0
+  lw $t0, 0($t0) # the base address is set to $t0
   add $t3, $a3, $zero # inputs the height of the rectangle onto #t3
-  sll $t1, $a1, 7   # shift $a1 (y) logically to the left by 7 (or by 128 = 32 bits * 4 bytes)
-  sll $t2, $a0, 2  # shift $a0 (x) logically to the left by 2 (or by 4 bytes)
-  add $t1, $t1, $t2   # obtains the sum of the offsets and puts it into $t1       
-  add $t0, $t0, $t1   # obtains the address of the top left unit of the rectangle we are drawing       
+  sll $t1, $a1, 7 # shift $a1 (y) logically to the left by 7 (or by 128 = 32 bits * 4 bytes)
+  sll $t2, $a0, 2 # shift $a0 (x) logically to the left by 2 (or by 4 bytes)
+  add $t1, $t1, $t2 # obtains the sum of the offsets and puts it into $t1       
+  add $t0, $t0, $t1 # obtains the address of the top left unit of the rectangle we are drawing       
 
 rectangle_row_loop:
   beq $t3, $zero, rectangle_finish  #if this is true, then the rectangle is completed 
@@ -348,7 +346,37 @@ grab_done:
 ##############################################################################
 # Milestone 3:
 # this is a brief description of all the Labels for Milestone 3
-# throw: 
+# throw: labels throw to throw_done help initialize the throwing feature for milestone 3
 ##############################################################################
 throw: #the character throws collected bubbles upward into the column above, stacking on existing bubbles
+  la $t3, HELD_COUNT
+  lw $t4, 0($t3)
+  beq $t4, $zero, throw_done # if the player is not holding anything, then there is nothing to throw
+  lw $t2, 4($t3) # t2 has the bubbles held colour
+  la $t0, GRID
+  sll $t1, $v1, 2
+  add $t0, $t0, $t1 
+  addi $t1, $zero, 14
 
+throw_find:
+  beq $t1, $zero, throw_save # if the column is full then nothing can be thrown
+  lw $t3, 0($t0)
+  beq $t3, $zero, throw_place
+  addi $t0, $t0, 28 
+  addi $t1, $t1, -1
+  j throw_find
+
+throw_place:
+  sw $t2, 0($t0) 
+  addi $t4, $t4, -1
+  addi $t0, $t0, 28
+  addi $t1, $t1, -1
+  beq $t4, $zero, throw_save # all bubbles are now thrown
+  bne $t1, $zero, throw_place # if there is still room below, then keep going
+
+throw_save:
+  la $t3, HELD_COUNT
+  sw $t4, 0($t3)
+
+throw_done:
+  j game_loop
