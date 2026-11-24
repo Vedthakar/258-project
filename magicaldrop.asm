@@ -70,6 +70,8 @@ main:
     
   game_loop:
     jal draw_wall
+    addi $a0, $zero, 1
+    jal draw_bubbles
     la $t1, PLAYER_COLOUR
     lw $s0, 0($t1)
     jal draw_player
@@ -206,6 +208,7 @@ draw_bubbles:
   beq $a0, 17, quit
 
 fill_bubble_row_loop:
+  addi $t8, $zero, 29  #when y ==29, then all the 14 rows are done
   beq $s1, $t8, bubble_fill_finish
   addi $s2, $zero, 1  #sets $s2 (x) to 1
 
@@ -218,8 +221,7 @@ fill_bubble_column_loop:
   sll $t6, $t6, 2  #shift $t6 by 2 logically left (so by 4 bytes) as the offset
   add $t7, $t7, $t6  #find the address of the offsetted cell
   lw $s0, 0($t7)  #load that colour value
-  
-  
+
   add $a0, $s2, $zero  #the current x position  
   add $a1, $s1, $zero  #the current y position
   addi $a2, $zero, 2  #the width
@@ -272,6 +274,7 @@ draw_player:
 
 keyboard_input:
     lw $t2 , 4($t0)
+    beq $s5, 10, move_down #s5 counts number of key strokes
     beq $t2 , 0x61, move_left
     beq $t2 , 0x64, move_right
     beq $t2 , 0x71, quit
@@ -300,6 +303,20 @@ move_right:
   la $t1, PLAYER_COLOUR
   lw $s0, 0($t1)
   jal draw_player #  draw at the new column
+  j game_loop
+
+move_down:
+  addi $s4, $s4, 2
+  add $a0, $s4, $zero
+  li $a1, 29
+  jal draw_bubbles
+  la $t0, GRID  #inputing the current cell into $t0
+  li $t1, 7
+  jal initialize_loop
+  li $a0, 1
+  li $a1, 3
+  jal draw_bubbles
+  li $s5, 0
   j game_loop
 
 quit:
