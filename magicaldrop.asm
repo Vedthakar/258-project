@@ -59,14 +59,13 @@ keyboard_address:
 
     # Run the game.
 main:
-    li $s5, 0
     li $s4, 1
     jal initialize_grid
     li $a0, 1
     li $a1, 29
     jal draw_bubbles
     # Initialize the game
-    
+
 game_loop:
     # 1a. Check if key has been pressed
     # 1b. Check which key has been pressed
@@ -88,7 +87,13 @@ game_loop:
 
     # 5. Go back to Step 1
     j game_loop
-    
+
+timer:
+  li $v0, 32 
+  li $a0 , 1000 
+  syscall
+  jal move_down
+  j game_loop
 ##############################################################################
 # Milestone 1:
 # this is a brief description of all the Labels for Milestone 1
@@ -260,8 +265,8 @@ draw_player:
   lw $t0, 0($t0)
   sll $t0, $t0, 1 #shift the value logically to the left by 1 
   add $a0, $t0, $v1
-  beq $a0, 0, stay_at_left
-  beq $a0, 14, stay_at_right
+  beq $a0, 0, wrap_at_left
+  beq $a0, 14, wrap_at_right
   addi $a1, $zero, 30  #sets the player's height to the bottom of the playing field 
   addi $a2, $zero, 2
   addi $a3, $zero, 2
@@ -272,19 +277,18 @@ draw_player:
   addi $sp, $sp, 8
   jr $ra
 
-stay_at_left:
-  li $a0, 1
-  addi $v1, $v1, 1
+wrap_at_left:
+  li $a0, 14
+  addi $v1, $zero,7
   jr $ra
 
-stay_at_right:
-  li $a0, 14
-  addi $v1, $v1, -1
+wrap_at_right:
+  li $a0, 0
+  addi $v1, $zero, -5
   jr $ra
   
 keyboard_input:
   lw $t2 , 4($t0)
-  beq $s5, 10, move_down #s5 counts number of key strokes
   beq $t2 , 0x61, move_left
   beq $t2 , 0x64, move_right
   j draw_player
@@ -300,11 +304,15 @@ move_down:
   li $a0, 1
   li $a1, 3
   jal draw_bubbles
-  li $s5, 0
+  li $v0, 33 
+  li $a0, 64 #pitch
+  li $a1, 10 #time
+  li $a2, 56  #trumpet
+  li $a3, 127 #volume
+  syscall
   j game_loop
 
 move_left:
-  addi $s5, $s5, 1
   la $t1, DELETE_COLOUR
   lw $s0, 0($t1)
   jal draw_player
@@ -312,10 +320,15 @@ move_left:
   la $t1, PLAYER_COLOUR
   lw $s0, 0($t1)
   jal draw_player
+  li $v0, 33 
+  li $a0, 60 #pitch
+  li $a1, 10 #time
+  li $a2, 0  #piano
+  li $a3, 127 #volume
+  syscall
   j game_loop
 
 move_right:
-  addi $s5, $s5, 1
   la $t1, DELETE_COLOUR
   lw $s0, 0($t1)
   jal draw_player
@@ -323,6 +336,12 @@ move_right:
   la $t1, PLAYER_COLOUR
   lw $s0, 0($t1)
   jal draw_player
+  li $v0, 33 
+  li $a0, 64 #pitch
+  li $a1, 10 #time
+  li $a2, 0  #piano
+  li $a3, 127 #volume
+  syscall
   j game_loop
 
 quit:
